@@ -1,0 +1,99 @@
+{
+  "1": {
+    "name": "Краснодар",
+    "name_en": "krasnodar",
+    "slug": "krasnodar",
+    "cian_region_id": 4820,
+    "total_pages": 54,
+    "db_city_id": 1,
+    "lat": 45.0355, "lon": 38.9753,
+    "lat_min": 43.0, "lat_max": 47.5, "lon_min": 36.5, "lon_max": 42.0,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "2": {
+    "name": "Сочи",
+    "name_en": "sochi",
+    "slug": "sochi",
+    "cian_region_id": 4998,
+    "total_pages": 40,
+    "db_city_id": 2,
+    "lat": 43.5855, "lon": 39.7231,
+    "lat_min": 43.0, "lat_max": 44.5, "lon_min": 39.0, "lon_max": 40.5,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "3": {
+    "name": "Анапа",
+    "name_en": "anapa",
+    "slug": "anapa",
+    "cian_region_id": 174191,
+    "total_pages": 20,
+    "db_city_id": 3,
+    "lat": 44.8951, "lon": 37.3167,
+    "lat_min": 44.5, "lat_max": 45.5, "lon_min": 36.8, "lon_max": 38.0,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "4": {
+    "name": "Геленджик",
+    "name_en": "gelendzhik",
+    "slug": "gelendzhik",
+    "cian_region_id": 4717,
+    "total_pages": 10,
+    "db_city_id": 4,
+    "lat": 44.5619, "lon": 38.0775,
+    "lat_min": 44.3, "lat_max": 44.9, "lon_min": 37.7, "lon_max": 38.5,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "5": {
+    "name": "Новороссийск",
+    "name_en": "novorossiysk",
+    "slug": "novorossiysk",
+    "cian_region_id": 4896,
+    "total_pages": 15,
+    "db_city_id": 5,
+    "lat": 44.7243, "lon": 37.7686,
+    "lat_min": 44.5, "lat_max": 45.0, "lon_min": 37.5, "lon_max": 38.2,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "6": {
+    "name": "Майкоп",
+    "name_en": "maykop",
+    "slug": "maykop",
+    "cian_region_id": 4855,
+    "total_pages": 10,
+    "db_city_id": 6,
+    "lat": 44.6087, "lon": 40.1006,
+    "lat_min": 44.4, "lat_max": 44.9, "lon_min": 39.8, "lon_max": 40.5,
+    "region_name": "Республика Адыгея",
+    "region_slug": "adygeya"
+  },
+  "7": {
+    "name": "Армавир",
+    "name_en": "armavir",
+    "slug": "armavir",
+    "cian_region_id": 4820,
+    "use_coord_filter": true,
+    "total_pages": 5,
+    "db_city_id": 7,
+    "lat": 45.0, "lon": 41.1237,
+    "lat_min": 44.8, "lat_max": 45.3, "lon_min": 40.8, "lon_max": 41.5,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  },
+  "8": {
+    "name": "Туапсе",
+    "name_en": "tuapse",
+    "slug": "tuapse",
+    "cian_region_id": 176134,
+    "total_pages": 5,
+    "db_city_id": 8,
+    "lat": 44.1014, "lon": 39.0758,
+    "lat_min": 43.9, "lat_max": 44.4, "lon_min": 38.8, "lon_max": 39.4,
+    "region_name": "Краснодарский край",
+    "region_slug": "krasnodarskiy-krai"
+  }
+}

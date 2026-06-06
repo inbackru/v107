@@ -1,0 +1,603 @@
+{% extends "base.html" %}
+
+{% block title %}{{ developer.name }} - Застройщик {% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+    .complex-card {
+        transition: all 0.3s ease;
+    }
+    .complex-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Slider styles */
+    .slider-dot.active {
+        background-color: white !important;
+    }
+    
+    .slider-prev:hover,
+    .slider-next:hover {
+        transform: translateY(-50%) scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+<div class="container mx-auto px-4 py-3 text-sm">
+    <nav aria-label="Breadcrumb" class="flex">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a class="text-[#0088CC] hover:underline inline-flex items-center" href="/">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                    </svg>
+                    Главная
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{{ url_for('developers') }}" class="text-[#0088CC] hover:underline ml-1 md:ml-2">Застройщики</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-gray-500 ml-1 md:ml-2">{{ developer.name }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-12">
+    <!-- Developer Header Section -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+        <div class="flex flex-col md:flex-row gap-6 items-start">
+            <div class="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                {% if developer.logo %}
+                <img alt="Логотип {{ developer.name }}" class="w-full h-full object-contain" src="{{ developer.logo }}"/>
+                {% else %}
+                <span class="text-4xl font-bold text-gray-400">{{ developer.short_name }}</span>
+                {% endif %}
+            </div>
+            <div class="flex-1">
+                <h1 class="text-3xl font-bold mb-2">{{ developer.name }}</h1>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">Застройщик</span>
+                    <span class="bg-gray-100 text-green-800 px-3 py-1 rounded-full text-sm">Работает с {{ developer.founded_year }}</span>
+                    {% if developer.specialization %}
+                    <span class="bg-gray-100 text-purple-800 px-3 py-1 rounded-full text-sm">{{ developer.specialization }}</span>
+                    {% endif %}
+                </div>
+                <p class="text-gray-600 mb-4">{{ developer.description | strip_phones | striptags }}</p>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 text-gray-600">
+                    {% if developer.website %}
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-globe text-[#0088CC]"></i>
+                        <span>{{ developer.website }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Stats Section -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <h2 class="text-xl font-bold">Поиск по проектам застройщика</h2>
+            <div class="relative w-full md:w-96">
+                <input class="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2 focus:ring-2 focus:ring-[#0088CC] focus:border-transparent" 
+                       placeholder="Найти ЖК по названию или району" type="text" id="complexSearch"/>
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-gray-500 text-sm mb-1">Строится домов</div>
+                <div class="text-2xl font-bold text-[#0088CC]">{{ developer.under_construction_buildings or developer.completed_buildings or developer.under_construction or 0 }}</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-gray-500 text-sm mb-1">ЖК в продаже</div>
+                <div class="text-2xl font-bold text-[#0088CC]">{{ developer.active_complexes_count or developer.complexes_count or 0 }}</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-gray-500 text-sm mb-1">На рынке</div>
+                <div class="text-2xl font-bold text-[#0088CC]">{{ developer.years_on_market if developer.years_on_market else ("5+" if not (developer.founded_year or developer.established_year) else "") }} лет</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="text-gray-500 text-sm mb-1">Сдано ЖК</div>
+                <div class="text-2xl font-bold text-[#0088CC]">{{ developer.completed_complexes_count or developer.completed_projects or developer.completed_complexes or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- О застройщике -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <h2 class="text-xl font-bold mb-4">О застройщике</h2>
+        <div class="prose max-w-none text-gray-700 mb-6">
+            <p>{{ (developer.detailed_description or developer.description or 'Один из ведущих застройщиков региона с многолетним опытом строительства качественного жилья.') | strip_phones | striptags }}</p>
+        </div>
+        
+        <!-- Характеристики застройщика -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            {% if developer.founded_year %}
+            <div>
+                <p class="text-gray-500 text-sm">Год основания</p>
+                <p class="font-semibold">{{ developer.founded_year }}</p>
+            </div>
+            {% endif %}
+            {% if developer.under_construction %}
+            <div>
+                <p class="text-gray-500 text-sm">Строится ЖК</p>
+                <p class="font-semibold">{{ developer.under_construction }}</p>
+            </div>
+            {% endif %}
+            {% if developer.completed_projects %}
+            <div>
+                <p class="text-gray-500 text-sm">Сдано ЖК</p>
+                <p class="font-semibold">{{ developer.completed_projects }}</p>
+            </div>
+            {% endif %}
+            {% if developer.properties_count %}
+            <div>
+                <p class="text-gray-500 text-sm">Квартир в продаже</p>
+                <p class="font-semibold">{{ "{:,.0f}".format(developer.properties_count).replace(',', ' ') }}</p>
+            </div>
+            {% endif %}
+            {% if developer.rating %}
+            <div>
+                <p class="text-gray-500 text-sm">Рейтинг</p>
+                <p class="font-semibold">{{ developer.rating }}/5</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Преимущества -->
+        <div>
+            <h3 class="font-bold mb-3">Преимущества застройщика</h3>
+            <div class="space-y-2">
+                {% for advantage in developer.advantages %}
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 mt-1 text-green-600">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <p class="text-gray-700">{{ advantage }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Жилые комплексы -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <h2 class="text-xl font-bold mb-6">Жилые комплексы застройщика</h2>
+        
+        {% if complexes %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for complex in complexes %}
+            {% set _complex_url = '/' + (complex.city_slug or 'krasnodar') + '/zk/' + (complex.slug or '') %}
+            <div class="complex-card bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 mobile-optimized cursor-pointer group" data-complex-id="{{ complex.id }}" onclick="handleCardClick(event, '{{ _complex_url }}')">
+                <!-- Complex Image Slider -->
+                <div class="relative h-56 overflow-hidden complex-slider" data-complex-id="{{ complex.id }}">
+                    <div class="slider-container">
+                        <div class="slider-track flex transition-transform duration-300 ease-in-out">
+                            {% if complex.images and complex.images|length > 0 %}
+                                {% for image in complex.images %}
+                                <div class="slider-slide min-w-full">
+                                    <img src="{{ image }}" alt="{{ complex.name }} - фото {{ loop.index }}" class="w-full h-56 object-cover bg-gray-50">
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="slider-slide min-w-full">
+                                    <img src="{{ complex.image }}" alt="{{ complex.name }}" class="w-full h-56 object-cover bg-gray-50">
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Slider navigation -->
+                    <button class="slider-prev absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:bg-white transition-all z-10" onclick="prevSlide('{{ complex.id }}')">
+                        <i class="fas fa-chevron-left text-sm"></i>
+                    </button>
+                    <button class="slider-next absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:bg-white transition-all z-10" onclick="nextSlide('{{ complex.id }}')">
+                        <i class="fas fa-chevron-right text-sm"></i>
+                    </button>
+                    
+                    <!-- Slider dots -->
+                    {% if complex.images and complex.images|length > 1 %}
+                    <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {% for image in complex.images %}
+                        <div class="slider-dot w-2 h-2 bg-white/60 rounded-full cursor-pointer hover:bg-white transition-colors {% if loop.first %}active{% endif %}" onclick="goToSlide('{{ complex.id|replace('\"', '') }}', {{ loop.index0 }})"></div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Status badges -->
+                    <div class="absolute top-3 left-3 z-10">
+                        {% if complex.completion_date == 'Сдан' %}
+                        <span class="bg-green-50 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">Готов</span>
+                        {% else %}
+                        <span class="bg-blue-50 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">Строится</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Price badge -->
+                    <div class="absolute top-3 right-3 bg-orange-50 text-gray-600 px-3 py-1 rounded-full text-sm font-bold z-10">
+                        {% if complex.real_price_from %}
+                        от {{ "{:.1f}".format(complex.real_price_from / 1000000) }} млн ₽
+                        {% elif complex.min_price %}
+                        от {{ "{:.1f}".format(complex.min_price / 1000000) }} млн ₽
+                        {% else %}
+                        от 8 млн ₽
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Favorite heart and comparison buttons -->
+                    <div class="absolute bottom-3 left-3 z-20 flex gap-2">
+                        <div class="favorite-heart w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer hover:bg-white transition-all duration-200 shadow-lg hover:shadow-xl" data-complex-id="{{ complex.id|replace('\"', '') }}">
+                            <i class="fas fa-heart text-lg text-gray-400 hover:text-red-500 transition-colors duration-200"></i>
+                        </div>
+                        <div class="comparison-btn w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer hover:bg-white hover:scale-110 transition-all duration-200 shadow-lg hover:shadow-xl" data-complex-id="{{ complex.id|replace('\"', '') }}" title="Добавить к сравнению" onclick="addToComplexCompare({{ complex.id|replace('\"', '') }}); event.stopPropagation();">
+                            <i class="fas fa-balance-scale text-gray-600 hover:text-blue-500 text-base transition-colors duration-200"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Complex Info -->
+                <div class="p-5">
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">{{ complex.name }}</h3>
+                        <p class="text-gray-500 text-sm">{{ developer.name }}</p>
+                    </div>
+                    
+                    <!-- Description -->
+                    <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ complex.description or "Современный жилой комплекс с развитой инфраструктурой" }}</p>
+                    
+                    <!-- Location -->
+                    <div class="flex items-center text-sm text-gray-600 mb-4">
+                        <i class="fas fa-map-marker-alt mr-2 text-[#0088CC]"></i>
+                        <span>{{ complex.district or complex.location or complex.address or "Краснодар" }}</span>
+                    </div>
+                    
+                    <!-- Amenities -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Детская площадка</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Фитнес-центр</span>
+                        {% if loop.index0 % 2 == 0 %}
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">+2</span>
+                        {% else %}
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">+3</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Stats grid -->
+                    <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                        <div class="flex items-center">
+                            <i class="fas fa-building mr-2 text-gray-400"></i>
+                            <div>
+                                <span class="text-gray-500">Корпусов</span>
+                                <div class="font-medium">{{ complex.buildings_count or 1 }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-home mr-2 text-gray-400"></i>
+                            <div>
+                                <span class="text-gray-500">Квартир</span>
+                                <div class="font-medium">{{ complex.available_apartments or complex.apartments_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Apartment types with selection -->
+                    <div class="border-t border-gray-100 pt-4 mb-4">
+                        <div class="text-xs text-gray-500 mb-3">Выберите тип квартиры</div>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            {% if complex.real_room_distribution %}
+                                {% for room_type, count in complex.real_room_distribution.items() %}
+                                {% set room_detail = complex.room_details.get(room_type, {}) %}
+                                <button onclick="showApartments({{ complex.id }}, '{{ room_type }}')" 
+                                        class="p-2 border border-gray-200 rounded-lg hover:border-[#0088CC] hover:bg-blue-50 transition-colors text-left">
+                                    <div class="font-medium text-gray-800">{{ room_type }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        {% if room_detail.area_from and room_detail.area_to %}
+                                            {% if room_detail.area_from != room_detail.area_to %}
+                                                {{ room_detail.area_from }}-{{ room_detail.area_to }} м²
+                                            {% else %}
+                                                {{ room_detail.area_from }} м²
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs font-medium text-[#0088CC]">
+                                        {% if room_detail.price_from %}
+                                            от {{ "{:.1f}".format(room_detail.price_from / 1000000) }} млн
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs text-green-600">{{ count }} шт</div>
+                                </button>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-span-2 text-center py-3 text-gray-500 text-sm">
+                                    Информация о квартирах будет доступна позже
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Date and Status -->
+                    <div class="flex items-center justify-between text-sm mb-4">
+                        <div class="flex items-center text-gray-500">
+                            <i class="fas fa-calendar mr-2"></i>
+                            <span>{{ complex.completion_date }}</span>
+                        </div>
+                        <span class="{% if complex.status == 'Сдан' %}bg-green-50{% else %}bg-orange-50{% endif %} text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                            {{ complex.status }}
+                        </span>
+                    </div>
+                    
+                    <!-- Action buttons -->
+                    <div class="flex gap-2">
+                        <!-- Recommendation button (only for managers) -->
+                        {% if session.manager_id %}
+                        <button onclick="openRecommendModal('complex', {{ complex.id }}, '{{ complex.name }}')" 
+                                class="recommend-btn flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors" 
+                                data-item-type="complex"
+                                data-item-id="{{ complex.id }}"
+                                data-item-name="{{ complex.name }}"
+                                title="Рекомендовать ЖК клиенту">
+                            <i class="fas fa-paper-plane mr-2"></i>
+                            Рекомендовать
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <div class="text-gray-400 text-6xl mb-4">🏗️</div>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">Проекты в разработке</h3>
+            <p class="text-gray-500">Этот застройщик активно работает над новыми проектами</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Квартиры застройщика -->
+    {% if apartments %}
+    <div class="bg-white rounded-2xl shadow-sm p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold">Квартиры в продаже</h2>
+            <span class="bg-[#0088CC]/10 text-[#0088CC] text-sm font-semibold px-3 py-1 rounded-full">{{ apartments|length }} объектов</span>
+        </div>
+        
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for apartment in apartments[:12] %}
+            {% set apt_price = apartment.price | int %}
+            {% set apt_area = apartment.object_area %}
+            {% set apt_rooms = apartment.object_rooms %}
+            {% set price_per_m2 = (apt_price / apt_area) | int if apt_area else 0 %}
+            {% set cashback = (apt_price * 0.04) | int %}
+            <a href="/property/{{ apartment.inner_id }}" class="group block rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-[#0088CC]/30 transition-all duration-200 bg-white">
+                <!-- Image -->
+                <div class="relative h-44 bg-gradient-to-br from-[#e8f4fd] to-[#f0f8ff] overflow-hidden">
+                    {% if apartment.main_image %}
+                    <img src="{{ apartment.main_image }}" alt="{{ apartment.complex_name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center">
+                        <i class="fas fa-building text-4xl text-[#0088CC]/30"></i>
+                    </div>
+                    {% endif %}
+                    <!-- Cashback badge -->
+                    <div class="absolute top-2 left-2 bg-[#0088CC] text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow">
+                        Кэшбек до {{ "{:,}".format(cashback).replace(',', ' ') }} ₽
+                    </div>
+                    <!-- Rooms badge -->
+                    <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full shadow">
+                        {% if apt_rooms == 0 %}Студия{% else %}{{ apt_rooms }}-комн.{% endif %}
+                    </div>
+                </div>
+                <!-- Info -->
+                <div class="p-4">
+                    <div class="flex items-start justify-between mb-1">
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm leading-tight">{{ apartment.complex_name }}</p>
+                            <p class="text-gray-400 text-xs mt-0.5">{{ apartment.floor_display }}</p>
+                        </div>
+                        <div class="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                            <i class="fas fa-vector-square text-[9px]"></i>
+                            {{ apt_area }} м²
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-50 flex items-end justify-between">
+                        <div>
+                            <p class="text-[#0088CC] font-black text-lg leading-none">{{ "{:,}".format(apt_price).replace(',', ' ') }} ₽</p>
+                            {% if price_per_m2 %}<p class="text-gray-400 text-xs mt-0.5">{{ "{:,}".format(price_per_m2).replace(',', ' ') }} ₽/м²</p>{% endif %}
+                        </div>
+                        <span class="text-xs text-[#0088CC] font-semibold bg-[#0088CC]/8 px-2.5 py-1 rounded-lg group-hover:bg-[#0088CC] group-hover:text-white transition-colors">
+                            Подробнее →
+                        </span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        
+        {% if apartments|length > 12 %}
+        <div class="text-center mt-6">
+            <a href="/properties?developer={{ developer.name|developer_slug }}" 
+               class="inline-flex items-center gap-2 px-6 py-3 bg-[#0088CC] text-white rounded-xl hover:bg-[#006699] transition-colors font-semibold">
+                <i class="fas fa-list"></i>
+                Посмотреть все {{ apartments|length }} квартир
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Контакты -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+        <h2 class="text-xl font-bold mb-4">Контактная информация</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <div class="space-y-3">
+                    {% if developer.address %}
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-map-marker-alt text-[#0088CC] w-5"></i>
+                        <span>{{ developer.address }}</span>
+                    </div>
+                    {% endif %}
+                    {% if developer.email %}
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-envelope text-[#0088CC] w-5"></i>
+                        <a href="mailto:{{ developer.email }}" class="text-[#0088CC] hover:underline">{{ developer.email }}</a>
+                    </div>
+                    {% endif %}
+                    {% if developer.website %}
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-globe text-[#0088CC] w-5"></i>
+                        <a href="https://{{ developer.website }}" target="_blank" class="text-[#0088CC] hover:underline">{{ developer.website }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="bg-gradient-to-r from-[#0088CC] to-[#006699] rounded-xl p-6 text-white">
+                    <h3 class="font-bold text-lg mb-2">Получить консультацию</h3>
+                    <p class="text-blue-100 mb-4">Бесплатная помощь в выборе квартиры и оформлении кэшбека</p>
+                    <button onclick="openApplicationModal()" class="w-full bg-white text-[#0088CC] font-semibold py-3 px-4 rounded-lg hover:bg-blue-50 transition-all">
+                        Оставить заявку
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Search functionality
+document.getElementById('complexSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const complexCards = document.querySelectorAll('.complex-card');
+    
+    complexCards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        const district = card.getAttribute('data-district');
+        
+        if (name.includes(searchTerm) || district.includes(searchTerm)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+});
+
+// Slider functionality
+let currentSlides = {};
+
+function nextSlide(complexId) {
+    const slider = document.querySelector(`[data-complex-id="${complexId}"] .slider-track`);
+    const slides = slider.querySelectorAll('.slider-slide');
+    const totalSlides = slides.length;
+    
+    if (totalSlides <= 1) return;
+    
+    if (!currentSlides[complexId]) currentSlides[complexId] = 0;
+    
+    currentSlides[complexId] = (currentSlides[complexId] + 1) % totalSlides;
+    updateSlider(complexId);
+}
+
+function prevSlide(complexId) {
+    const slider = document.querySelector(`[data-complex-id="${complexId}"] .slider-track`);
+    const slides = slider.querySelectorAll('.slider-slide');
+    const totalSlides = slides.length;
+    
+    if (totalSlides <= 1) return;
+    
+    if (!currentSlides[complexId]) currentSlides[complexId] = 0;
+    
+    currentSlides[complexId] = currentSlides[complexId] === 0 ? totalSlides - 1 : currentSlides[complexId] - 1;
+    updateSlider(complexId);
+}
+
+function goToSlide(complexId, slideIndex) {
+    currentSlides[complexId] = slideIndex;
+    updateSlider(complexId);
+}
+
+function updateSlider(complexId) {
+    const slider = document.querySelector(`[data-complex-id="${complexId}"] .slider-track`);
+    const dots = document.querySelectorAll(`[data-complex-id="${complexId}"] .slider-dot`);
+    
+    if (!slider) return;
+    
+    const slideIndex = currentSlides[complexId] || 0;
+    
+    slider.style.transform = `translateX(-${slideIndex * 100}%)`;
+    
+    dots.forEach((dot, index) => {
+        if (index === slideIndex) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+}
+
+// Initialize sliders
+document.addEventListener('DOMContentLoaded', function() {
+    const sliders = document.querySelectorAll('.complex-slider');
+    sliders.forEach(slider => {
+        const complexId = slider.getAttribute('data-complex-id');
+        currentSlides[complexId] = 0;
+    });
+});
+
+// Show apartments function
+function showApartments(complexName, roomType) {
+    // Перенаправляем на страницу квартир с фильтром по ЖК и комнатности
+    const encodedComplex = encodeURIComponent(complexName);
+    const encodedRoom = encodeURIComponent(roomType);
+    window.location.href = `/properties?complex=${encodedComplex}&room_type=${encodedRoom}`;
+}
+
+// Favorites functionality - ИСПРАВЛЕНО: подключено к FavoritesManager
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.favorite-heart').forEach(heart => {
+        heart.addEventListener('click', function(event) {
+            event.stopPropagation(); // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: предотвращаем навигацию
+            const complexId = this.getAttribute('data-complex-id');
+            
+            // Вызываем FavoritesManager для реального сохранения в БД
+            if (window.favoritesManager) {
+                window.favoritesManager.toggleComplexFavorite(complexId, this);
+            } else {
+                console.error('FavoritesManager не инициализирован');
+                // Fallback - только визуальное изменение
+                const icon = this.querySelector('i');
+                if (icon.classList.contains('text-red-500')) {
+                    icon.classList.remove('text-red-500');
+                    icon.classList.add('text-gray-400');
+                } else {
+                    icon.classList.remove('text-gray-400');
+                    icon.classList.add('text-red-500');
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

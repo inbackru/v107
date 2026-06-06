@@ -1,0 +1,43 @@
+uploads = []
+
+[[generated]]
+id = "I7hlxifqtW4xITA0-TjOO"
+uri = "file://artifacts/mockup-sandbox/public/images/studio-interior.png"
+type = "image"
+title = "Studio apartment interior"
+
+[[generated]]
+id = "IizN9MXq_hOkBBJK8z-M2"
+uri = "file://artifacts/mockup-sandbox/public/images/building-exterior.png"
+type = "image"
+title = "Residential building exterior"
+
+[[generated]]
+id = "RHfC8sl8lveaN2qJ6keMZ"
+uri = "file://artifacts/mockup-sandbox/public/images/luxury-ext.png"
+type = "image"
+title = "dramatic dark architecture"
+
+[[generated]]
+id = "YW6pfOjEn_4ei-rGLZmQE"
+uri = "file://artifacts/mockup-sandbox/public/images/luxury-int.png"
+type = "image"
+title = "sleek dark interior"
+
+[[outputs]]
+id = "s_4mpa9OeRb7pjpjNWXpW"
+uri = "file://inback_db_dump_20260513.zip"
+type = "unspecified"
+title = "InBack — дамп БД (13.05.2026)"
+
+[[outputs]]
+id = "BouiV2pH1DDBBSfw18Se5"
+uri = "file://DEPLOY_GUIDE.md"
+type = "text"
+title = "Гайд по переезду на новый хостинг"
+
+[[outputs]]
+id = "FuFCCmtYKZfsvtM236mlr"
+uri = "file://db_dump_20260521_101430.tar.gz"
+type = "unspecified"
+title = "Дамп БД InBack — 21.05.2026"

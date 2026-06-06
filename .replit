@@ -1,0 +1,162 @@
+modules = ["web", "php-8.2", "python-3.11", "nodejs-20", "postgresql-16"]
+run = "python main.py"
+
+[nix]
+channel = "stable-25_05"
+packages = ["cacert", "chromedriver", "chromium", "coreutils", "fontconfig", "freetype", "geckodriver", "ghostscript", "gitFull", "glib", "glibcLocales", "harfbuzz", "lcms2", "libarchive", "libev", "libffi", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "pango", "php", "pkg-config", "playwright-driver", "postgresql", "tcl", "tk", "unrar", "xcodebuild", "zlib"]
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Telegram Bot"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Enrich CIAN"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Fix JK Bulk"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Monitor Prices City 1"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Enrich CIAN Sochi"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Update Nearby (All Cities)"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Mockup Sandbox"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PATH=$PATH:/home/runner/workspace/.pythonlibs/bin gunicorn --bind 0.0.0.0:5000 --reuse-port --workers 2 --timeout 120 main:app"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Telegram Bot"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 run_bot.py"
+
+[[workflows.workflow]]
+name = "Enrich CIAN"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -u scripts/run_city.py --city 1 --mode full"
+
+[[workflows.workflow]]
+name = "Fix JK Bulk"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -u scripts/fix_jk_bulk.py --city 1"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Monitor Prices City 1"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -u scripts/run_city.py --city 1 --mode prices"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Enrich CIAN Sochi"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -u scripts/run_city.py --city 2 --mode full"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Update Nearby (All Cities)"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -u scripts/update_complex_nearby.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Mockup Sandbox"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/mockup-sandbox && PORT=8000 BASE_PATH=/__mockup/ npm run dev"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
+isCanvasWorkflow = true
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[agent]
+integrations = ["web_scraper:1.0.0", "python_database:1.0.0", "python_sendgrid:1.0.0"]
+expertMode = true
+stack = "FLASK_VANILLA_JS"
+
+[userenv]
+
+[userenv.shared]
+RED_SMS_LOGIN = "bithome"
+TEST_SMS_MODE = "false"
+ENABLE_SCHEDULER = "true"
+ENRICH_ANTICAPTCHA = "84c2794966badadf71537069399a28e6"

@@ -1,0 +1,653 @@
+{% extends "base.html" %}
+
+{% block title %}Избранное{% if current_city %} — {{ current_city.name }}{% endif %} | InBack{% endblock %}
+{% block description %}Сохранённые квартиры, ЖК и сравнение объектов. Сравнивайте и выбирайте лучший вариант.{% endblock %}
+
+{% block head_extra %}
+{% if manager_authenticated %}
+<script>window.manager_authenticated = true;</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<style>
+/* ── Tabs ── */
+.fav-main-tabs { display:flex; gap:0; border-bottom:2px solid #e5e7eb; }
+.fav-main-tab { padding:14px 20px; font-size:14px; font-weight:600; color:#6b7280; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all .2s; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.fav-main-tab:hover { color:#0088CC; }
+.fav-main-tab.active { color:#0088CC; border-bottom-color:#0088CC; }
+.fav-main-tab .tab-badge { background:#0088CC; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700; }
+/* ── Cards ── */
+.fav-card { transition:box-shadow .18s,transform .18s; }
+.fav-card:hover { box-shadow:0 6px 24px rgba(0,136,204,.12); transform:translateY(-1px); }
+.fav-card-img { width:140px; min-width:140px; height:112px; object-fit:cover; border-radius:12px 0 0 12px; }
+@media(max-width:639px){
+  .fav-card-img { width:100%;min-width:0;height:160px;border-radius:12px 12px 0 0; }
+  .fav-card-body { flex-direction:column!important; }
+}
+.remove-anim { transition:opacity .25s,transform .25s; }
+.remove-anim.removing { opacity:0;transform:scale(.96); }
+/* ── Comparison cards ── */
+.cmp-shelf { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+@media(max-width:639px){ .cmp-shelf { grid-template-columns:repeat(2,1fr); gap:10px; } }
+.cmp-card { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; overflow:hidden; transition:box-shadow .18s; }
+.cmp-card:hover { box-shadow:0 6px 20px rgba(0,136,204,.12); }
+.cmp-card-img { width:100%;height:140px;object-fit:cover; }
+@media(max-width:639px){ .cmp-card-img { height:110px; } }
+.cmp-sub-tab { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+.cmp-sub-tab.active { background:#0088CC; color:#fff; }
+.cmp-sub-tab:not(.active) { background:#f3f4f6; color:#6b7280; }
+.cmp-sub-tab:not(.active):hover { background:#e5e7eb; }
+</style>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────── -->
+<div style="background:linear-gradient(180deg,#e8f4fd 0%,#f8fbff 60%,#fff 100%);" class="pt-8 pb-0 md:pt-10">
+  <div class="max-w-7xl mx-auto px-4">
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-1.5 text-sm text-gray-500 mb-4">
+      {% if manager_authenticated %}
+      <a href="{{ url_for('manager_dashboard') }}" class="hover:text-[#0088CC] transition-colors flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Панель менеджера
+      </a>
+      {% elif current_city %}
+      <a href="{{ url_for('index', city_slug=current_city.slug) }}" class="hover:text-[#0088CC] transition-colors">Главная</a>
+      <span class="text-gray-300">/</span>
+      <span class="text-gray-700">Избранное</span>
+      {% endif %}
+    </div>
+
+    <!-- Title row -->
+    <div class="flex items-end justify-between gap-4 mb-6">
+      <div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#0088CC]/10 rounded-full text-xs font-semibold text-[#0088CC] uppercase tracking-wide mb-2">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
+          Избранное
+        </div>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+          {% if manager_authenticated %}Рабочая подборка{% else %}Мои объекты{% endif %}
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+          {% if manager_authenticated %}Квартиры и ЖК для работы с клиентами — сравнение и подборки
+          {% else %}Сохранённые квартиры, ЖК и сравнение
+          {% endif %}
+        </p>
+      </div>
+      <!-- Sort / Clear action -->
+      <button id="fav-clear-btn" onclick="favClearCurrent()" class="hidden flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-all">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        Очистить
+      </button>
+    </div>
+
+    <!-- Main tabs (Циан style) -->
+    <div class="fav-main-tabs overflow-x-auto no-scrollbar">
+      <button class="fav-main-tab active" id="main-tab-btn-properties" onclick="favMainTab('properties')">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Квартиры
+        <span class="tab-badge hidden" id="main-badge-properties">0</span>
+      </button>
+      <button class="fav-main-tab" id="main-tab-btn-complexes" onclick="favMainTab('complexes')">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+        ЖК
+        <span class="tab-badge hidden" id="main-badge-complexes">0</span>
+      </button>
+      <button class="fav-main-tab" id="main-tab-btn-comparison" onclick="favMainTab('comparison')">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Сравнение
+        <span class="tab-badge hidden" id="main-badge-comparison">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Content ──────────────────────────────────────────────────────────── -->
+<div class="bg-gray-50 min-h-screen mobile-pb">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- Loading -->
+    <div id="fav-loading" class="text-center py-20">
+      <div class="inline-block w-9 h-9 border-[3px] border-[#0088CC] border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="text-gray-500 text-sm">Загружаем...</p>
+    </div>
+
+    <!-- Empty ALL -->
+    <div id="fav-empty-all" class="hidden text-center py-16">
+      <div class="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-5">
+        <svg class="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
+      </div>
+      <h2 class="text-xl font-bold text-gray-700 mb-2">Пока ничего не сохранено</h2>
+      <p class="text-gray-500 text-sm mb-7 max-w-xs mx-auto">Нажимайте ♡ на карточке объекта, чтобы добавить в избранное</p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{{ url_for('properties_city', city_slug=current_city.slug) if current_city else url_for('properties') }}" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0088CC] text-white rounded-xl font-semibold hover:bg-[#006699] transition-colors">
+          Найти квартиры
+        </a>
+        <a href="{{ url_for('residential_complexes_city', city_slug=current_city.slug) if current_city else url_for('residential_complexes') }}" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-[#0088CC] hover:text-[#0088CC] transition-colors">
+          Жилые комплексы
+        </a>
+      </div>
+    </div>
+
+    <!-- ── TAB: Properties ─────────────────────────────────────────────── -->
+    <div id="main-tab-properties" class="main-tab-pane">
+      <div id="fav-properties-list" class="space-y-3"></div>
+      <div id="fav-properties-empty" class="hidden text-center py-14">
+        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        <p class="text-gray-500 font-medium mb-2">Нет избранных квартир</p>
+        <a href="{{ url_for('properties_city', city_slug=current_city.slug) if current_city else url_for('properties') }}" class="text-[#0088CC] text-sm hover:underline">Перейти в каталог →</a>
+      </div>
+    </div>
+
+    <!-- ── TAB: Complexes ──────────────────────────────────────────────── -->
+    <div id="main-tab-complexes" class="main-tab-pane hidden">
+      <div id="fav-complexes-list" class="space-y-3"></div>
+      <div id="fav-complexes-empty" class="hidden text-center py-14">
+        <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+        <p class="text-gray-500 font-medium mb-2">Нет избранных ЖК</p>
+        <a href="{{ url_for('residential_complexes_city', city_slug=current_city.slug) if current_city else url_for('residential_complexes') }}" class="text-[#0088CC] text-sm hover:underline">Смотреть ЖК →</a>
+      </div>
+    </div>
+
+    <!-- ── TAB: Comparison ─────────────────────────────────────────────── -->
+    <div id="main-tab-comparison" class="main-tab-pane hidden">
+      <!-- Sub-tabs -->
+      <div class="flex items-center gap-2 mb-5">
+        <button class="cmp-sub-tab active" id="cmp-sub-btn-properties" onclick="cmpSubTab('properties')">Квартиры (<span id="cmp-prop-count">0</span>)</button>
+        <button class="cmp-sub-tab" id="cmp-sub-btn-complexes" onclick="cmpSubTab('complexes')">ЖК (<span id="cmp-cplx-count">0</span>)</button>
+        <div class="flex-1"></div>
+        {% if manager_authenticated %}
+        <button onclick="window.print()" class="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          Печать
+        </button>
+        {% endif %}
+        <button id="cmp-clear-btn" onclick="cmpClearSub()" class="hidden items-center gap-1.5 px-3 py-2 text-sm text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-all">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Очистить
+        </button>
+      </div>
+
+      <!-- Sub-pane: properties comparison -->
+      <div id="cmp-pane-properties">
+        <div id="cmp-props-loading" class="text-center py-10">
+          <div class="inline-block w-7 h-7 border-2 border-[#0088CC] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <div id="cmp-props-grid" class="cmp-shelf hidden"></div>
+        <div id="cmp-props-empty" class="hidden text-center py-14">
+          <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <p class="text-gray-500 font-medium mb-1">Нет квартир в сравнении</p>
+          <p class="text-xs text-gray-400">Нажмите «Сравнить» на карточке квартиры</p>
+        </div>
+        <!-- Detailed comparison link -->
+        <div id="cmp-props-detail-link" class="hidden mt-5 text-center">
+          <a href="{{ url_for('comparison_city', city_slug=current_city.slug) if current_city else url_for('comparison') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0088CC] text-white rounded-xl font-semibold text-sm hover:bg-[#006699] transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Подробное сравнение характеристик →
+          </a>
+        </div>
+      </div>
+
+      <!-- Sub-pane: complexes comparison -->
+      <div id="cmp-pane-complexes" class="hidden">
+        <div id="cmp-cplxs-loading" class="text-center py-10">
+          <div class="inline-block w-7 h-7 border-2 border-[#0088CC] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <div id="cmp-cplxs-grid" class="cmp-shelf hidden"></div>
+        <div id="cmp-cplxs-empty" class="hidden text-center py-14">
+          <svg class="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+          <p class="text-gray-500 font-medium mb-1">Нет ЖК в сравнении</p>
+          <p class="text-xs text-gray-400">Нажмите «Сравнить» на карточке ЖК</p>
+        </div>
+        <div id="cmp-cplxs-detail-link" class="hidden mt-5 text-center">
+          <a href="{{ url_for('comparison_city', city_slug=current_city.slug) if current_city else url_for('comparison') }}?tab=complexes" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0088CC] text-white rounded-xl font-semibold text-sm hover:bg-[#006699] transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Подробное сравнение ЖК →
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+var IS_MGR = Boolean(window.manager_authenticated);
+var _propCount = 0, _cplxCount = 0;
+var _cmpPropCount = 0, _cmpCplxCount = 0;
+var _curMain = 'properties';
+var _curSub = 'properties';
+var _cmpPropsLoaded = false, _cmpCplxsLoaded = false;
+
+function getCSRF(){ return (document.querySelector('meta[name="csrf-token"]')||{}).content||''; }
+function fmtPrice(n){
+  if(!n) return 'По запросу';
+  n=Number(n);
+  if(n>=1e6) return (n/1e6).toFixed(1).replace('.0','') + ' млн ₽';
+  if(n>=1e3) return Math.round(n/1000) + ' тыс. ₽';
+  return n.toLocaleString('ru-RU') + ' ₽';
+}
+
+// ── Main tab switching ────────────────────────────────────────────────────
+window.favMainTab = function(tab){
+  _curMain = tab;
+  document.querySelectorAll('.fav-main-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-pane').forEach(p=>p.classList.add('hidden'));
+  var btn = document.getElementById('main-tab-btn-'+tab);
+  if(btn) btn.classList.add('active');
+  var pane = document.getElementById('main-tab-'+tab);
+  if(pane) pane.classList.remove('hidden');
+
+  // Show clear only for fav tabs
+  var clearBtn = document.getElementById('fav-clear-btn');
+  if(clearBtn){
+    var show = (tab==='properties' && _propCount>0) || (tab==='complexes' && _cplxCount>0);
+    clearBtn.classList.toggle('hidden', !show);
+  }
+
+  // Load comparison data on first open
+  if(tab==='comparison' && !_cmpPropsLoaded) loadCmpProps();
+  if(tab==='comparison' && !_cmpCplxsLoaded) loadCmpCplxs();
+  updateCmpSubUI();
+};
+
+function updateBadge(id, count){
+  var el = document.getElementById('main-badge-'+id);
+  if(!el) return;
+  el.textContent = count;
+  el.classList.toggle('hidden', count===0);
+}
+
+// ── Comparison sub-tab ────────────────────────────────────────────────────
+window.cmpSubTab = function(sub){
+  _curSub = sub;
+  ['properties','complexes'].forEach(function(s){
+    document.getElementById('cmp-sub-btn-'+s).classList.toggle('active', s===sub);
+    document.getElementById('cmp-pane-'+s).classList.toggle('hidden', s!==sub);
+  });
+  updateCmpClearBtn();
+};
+
+function updateCmpSubUI(){
+  updateCmpClearBtn();
+}
+function updateCmpClearBtn(){
+  var btn = document.getElementById('cmp-clear-btn');
+  if(!btn) return;
+  var count = _curSub==='properties' ? _cmpPropCount : _cmpCplxCount;
+  btn.classList.toggle('hidden', count===0);
+}
+
+// ── Load favorites ─────────────────────────────────────────────────────────
+async function loadAll(){
+  var propEP = IS_MGR ? '/api/manager/favorites/list' : '/api/favorites/list';
+  var cplxEP = IS_MGR ? '/api/manager/complexes/favorites/list' : '/api/complexes/favorites/list';
+  var [pr, cr] = await Promise.allSettled([
+    fetch(propEP).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(cplxEP).then(r=>r.ok?r.json():null).catch(()=>null)
+  ]);
+  var props = (pr.status==='fulfilled'&&pr.value&&pr.value.success) ? (pr.value.favorites||pr.value.properties||[]) : [];
+  var cplxs = (cr.status==='fulfilled'&&cr.value&&cr.value.success) ? (cr.value.complexes||cr.value.favorites||[]) : [];
+
+  document.getElementById('fav-loading').classList.add('hidden');
+  _propCount = props.length; _cplxCount = cplxs.length;
+  updateBadge('properties', _propCount);
+  updateBadge('complexes', _cplxCount);
+
+  if(_propCount===0 && _cplxCount===0){
+    document.getElementById('fav-empty-all').classList.remove('hidden');
+  } else {
+    renderProps(props); renderCplxs(cplxs);
+    // Default to first non-empty
+    if(_propCount>0) favMainTab('properties');
+    else favMainTab('complexes');
+  }
+
+  // Read comparison counts from localStorage/server
+  try {
+    var cmpProps = JSON.parse(localStorage.getItem('comparisons')||'[]');
+    var cmpCplxs = JSON.parse(localStorage.getItem('comparison_complexes')||'[]');
+    _cmpPropCount = cmpProps.length; _cmpCplxCount = cmpCplxs.length;
+    updateBadge('comparison', _cmpPropCount+_cmpCplxCount);
+    document.getElementById('cmp-prop-count').textContent = _cmpPropCount;
+    document.getElementById('cmp-cplx-count').textContent = _cmpCplxCount;
+  } catch(e){}
+
+  // Check URL param
+  var urlTab = new URLSearchParams(window.location.search).get('tab');
+  if(urlTab==='comparison'){ favMainTab('comparison'); }
+  else if(urlTab==='complexes'){ favMainTab('complexes'); }
+}
+
+// ── Property cards ─────────────────────────────────────────────────────────
+function renderProps(props){
+  var list = document.getElementById('fav-properties-list');
+  var empty = document.getElementById('fav-properties-empty');
+  if(props.length===0){ empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML = props.map(propCard).join('');
+}
+function propCard(p){
+  var isSold = p.is_sold||false;
+  var price = Number(p.price)||0;
+  var cashback = Number(p.cashback_amount)||Math.round(price*(Number(p.cashback_rate)||3.5)/100);
+  var img = p.image||'/static/images/no-photo.svg';
+  return `<div class="fav-card remove-anim bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-fav-prop="${p.id}">
+    <div class="fav-card-body flex">
+      <div class="relative flex-shrink-0">
+        <img src="${img}" alt="" class="fav-card-img" onerror="this.src='/static/images/no-photo.svg'">
+        ${isSold?'<div class="absolute inset-0 bg-black/35 flex items-center justify-center"><span class="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ПРОДАН</span></div>':''}
+      </div>
+      <div class="flex-1 p-4 min-w-0">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <a href="/object/${p.id}" class="font-semibold text-gray-900 text-sm leading-snug hover:text-[#0088CC] ${isSold?'line-through text-gray-400':''}">${p.title||'Квартира'}</a>
+          <button onclick="favRemoveProp('${p.id}')" class="flex-shrink-0 w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-400 flex items-center justify-center text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-0.5 truncate">${p.complex||''}</p>
+        <p class="text-xs text-gray-400 mb-2 truncate">${p.district||p.address||''}</p>
+        <div class="flex items-center gap-2 flex-wrap mb-3">
+          <span class="font-bold text-base ${isSold?'text-gray-400':'text-[#0088CC]'}">${price?fmtPrice(price):'По запросу'}</span>
+          ${!isSold&&cashback?`<span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">💰 ${fmtPrice(cashback)}</span>`:''}
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <a href="/object/${p.id}" class="px-3 py-1.5 bg-[#0088CC] text-white text-xs font-semibold rounded-lg hover:bg-[#006699] transition-colors">Подробнее</a>
+          ${!isSold?`<button onclick="favAddToCmp('${p.id}','property',this)" class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg hover:bg-blue-50 hover:text-[#0088CC] transition-colors">Сравнить</button>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Complex cards ──────────────────────────────────────────────────────────
+function renderCplxs(cplxs){
+  var list = document.getElementById('fav-complexes-list');
+  var empty = document.getElementById('fav-complexes-empty');
+  if(cplxs.length===0){ empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML = cplxs.map(cplxCard).join('');
+}
+function cplxCard(c){
+  var name = c.name||c.complex_name||'Жилой комплекс';
+  var img = c.image||c.main_image||c.complex_image||'/static/images/no-photo.svg';
+  var url = c.url||c.complex_url||'#';
+  var minPrice = c.min_price||c.price_from||0;
+  var maxPrice = c.max_price||0;
+  var complexId = c.id||c.complex_id;
+  return `<div class="fav-card remove-anim bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-fav-cplx="${complexId}">
+    <div class="fav-card-body flex">
+      <div class="relative flex-shrink-0">
+        <img src="${img}" alt="${name}" class="fav-card-img" onerror="this.src='/static/images/no-photo.svg'">
+      </div>
+      <div class="flex-1 p-4 min-w-0">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <a href="${url}" class="font-semibold text-gray-900 text-sm leading-snug hover:text-[#0088CC]">${name}</a>
+          <button onclick="favRemoveCplx('${complexId}')" class="flex-shrink-0 w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-400 flex items-center justify-center text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-0.5 truncate">${c.developer||c.developer_name||''}</p>
+        <p class="text-xs text-gray-400 mb-2 truncate">${c.district||c.district_name||c.address||c.complex_address||''}</p>
+        ${minPrice?`<div class="flex items-center gap-2 mb-3">
+          <span class="font-bold text-base text-[#0088CC]">от ${fmtPrice(minPrice)}</span>
+          ${maxPrice&&maxPrice>minPrice?`<span class="text-xs text-gray-400">до ${fmtPrice(maxPrice)}</span>`:''}
+        </div>`:'<div class="mb-3"></div>'}
+        <div class="flex gap-2 flex-wrap">
+          <a href="${url}" class="px-3 py-1.5 bg-[#0088CC] text-white text-xs font-semibold rounded-lg hover:bg-[#006699] transition-colors">Подробнее</a>
+          <button onclick="favAddToCmp('${complexId}','complex',this)" class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg hover:bg-blue-50 hover:text-[#0088CC] transition-colors">Сравнить</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Remove favorites ───────────────────────────────────────────────────────
+window.favRemoveProp = async function(id){
+  var card = document.querySelector('[data-fav-prop="'+id+'"]');
+  if(!confirm('Удалить из избранного?')) return;
+  if(card) card.classList.add('removing');
+  var ok = false;
+  try {
+    if(IS_MGR){
+      ok = (await (await fetch('/api/manager/favorites/'+id,{method:'DELETE',headers:{'X-CSRFToken':getCSRF()}})).json()).success;
+    } else {
+      ok = (await (await fetch('/api/favorites/toggle',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},body:JSON.stringify({property_id:id})})).json()).success;
+    }
+  } catch(e){}
+  if(ok&&card){ setTimeout(()=>{ card.remove(); _propCount=Math.max(0,_propCount-1); updateBadge('properties',_propCount); if(_propCount===0) document.getElementById('fav-properties-empty').classList.remove('hidden'); },250); if(window.updateHeaderFavoritesHeart) window.updateHeaderFavoritesHeart(); }
+  else if(!ok && card) card.classList.remove('removing');
+};
+
+window.favRemoveCplx = async function(id){
+  var card = document.querySelector('[data-fav-cplx="'+id+'"]');
+  if(!confirm('Удалить из избранного?')) return;
+  if(card) card.classList.add('removing');
+  var ok = false;
+  try {
+    if(IS_MGR){
+      ok = (await (await fetch('/api/manager/complexes/favorites/'+id,{method:'DELETE',headers:{'X-CSRFToken':getCSRF()}})).json()).success;
+    } else {
+      ok = (await (await fetch('/api/complexes/favorites/toggle',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},body:JSON.stringify({complex_id:id})})).json()).success;
+    }
+  } catch(e){}
+  if(ok&&card){ setTimeout(()=>{ card.remove(); _cplxCount=Math.max(0,_cplxCount-1); updateBadge('complexes',_cplxCount); if(_cplxCount===0) document.getElementById('fav-complexes-empty').classList.remove('hidden'); },250); if(window.updateHeaderFavoritesHeart) window.updateHeaderFavoritesHeart(); }
+  else if(!ok && card) card.classList.remove('removing');
+};
+
+window.favClearCurrent = async function(){
+  if(_curMain==='comparison') return;
+  var isProps = _curMain==='properties';
+  if(!confirm('Очистить '+(isProps?'квартиры':'ЖК')+' из избранного?')) return;
+  try {
+    var ep = IS_MGR ? (isProps?'/api/manager/favorites/clear':'/api/manager/complexes/favorites/clear') : (isProps?'/api/favorites/clear-all':'/api/complexes/favorites/clear-all');
+    await fetch(ep,{method:IS_MGR?'DELETE':'POST',headers:{'X-CSRFToken':getCSRF()}});
+    location.reload();
+  } catch(e){ location.reload(); }
+};
+
+// ── Add to comparison ──────────────────────────────────────────────────────
+window.favAddToCmp = async function(id, type, btn){
+  var isProp = type==='property';
+  var ep = IS_MGR ? (isProp?'/api/manager/comparison/property/add':'/api/manager/comparison/complex/add') : (isProp?'/api/user/comparison/property/add':'/api/user/comparison/complex/add');
+  var body = isProp ? {property_id:id} : {complex_id:id};
+  try {
+    var r = await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},body:JSON.stringify(body)});
+    var d = await r.json();
+    if(d.success||d.added){
+      if(btn){ btn.textContent='✓ В сравнении'; btn.disabled=true; btn.classList.add('text-green-600','bg-green-50'); }
+      var key = isProp?'comparisons':'comparison_complexes';
+      try { var arr=JSON.parse(localStorage.getItem(key)||'[]'); if(!arr.includes(String(id))){ arr.push(String(id)); localStorage.setItem(key,JSON.stringify(arr)); } } catch(e){}
+      var total = 0;
+      try { total += JSON.parse(localStorage.getItem('comparisons')||'[]').length; } catch(e){}
+      try { total += JSON.parse(localStorage.getItem('comparison_complexes')||'[]').length; } catch(e){}
+      updateBadge('comparison', total);
+      if(isProp){ _cmpPropCount++; document.getElementById('cmp-prop-count').textContent=_cmpPropCount; }
+      else { _cmpCplxCount++; document.getElementById('cmp-cplx-count').textContent=_cmpCplxCount; }
+      _cmpPropsLoaded = false; _cmpCplxsLoaded = false; // force reload on next open
+    } else { alert(d.message||d.error||'Не удалось добавить'); }
+  } catch(e){}
+};
+
+// ── Comparison tab: load property cards ───────────────────────────────────
+async function loadCmpProps(){
+  _cmpPropsLoaded = true;
+  var loading = document.getElementById('cmp-props-loading');
+  var grid = document.getElementById('cmp-props-grid');
+  var empty = document.getElementById('cmp-props-empty');
+  var detLink = document.getElementById('cmp-props-detail-link');
+
+  var ids = [];
+  try { ids = JSON.parse(localStorage.getItem('comparisons')||'[]'); } catch(e){}
+
+  // For managers, also try server
+  if(IS_MGR && ids.length===0){
+    try {
+      var sr = await fetch('/api/manager/comparison/load');
+      var sd = await sr.json();
+      if(sd.success && sd.properties) ids = sd.properties.map(p=>String(p.id||p.property_id)).filter(Boolean);
+    } catch(e){}
+  }
+
+  _cmpPropCount = ids.length;
+  document.getElementById('cmp-prop-count').textContent = _cmpPropCount;
+  updateBadge('comparison', _cmpPropCount+_cmpCplxCount);
+
+  if(ids.length===0){ if(loading) loading.classList.add('hidden'); if(empty) empty.classList.remove('hidden'); updateCmpClearBtn(); return; }
+
+  var cards = [];
+  for(var i=0; i<Math.min(ids.length,6); i++){
+    try {
+      var r = await fetch('/api/property/'+ids[i]);
+      if(r.ok){ var d = await r.json(); if(d.id||d.property){ cards.push(d.property||d); } }
+    } catch(e){}
+  }
+
+  if(loading) loading.classList.add('hidden');
+  if(cards.length===0){ if(empty) empty.classList.remove('hidden'); updateCmpClearBtn(); return; }
+
+  grid.innerHTML = cards.map(function(p,i){ return cmpPropCard(p, ids[i]); }).join('');
+  grid.classList.remove('hidden');
+  if(detLink && ids.length>=2) detLink.classList.remove('hidden');
+  updateCmpClearBtn();
+}
+
+function cmpPropCard(p, fallbackId){
+  var id = p.id || fallbackId;
+  var title = p.title || p.name || ('Квартира #'+id);
+  var price = Number(p.price)||0;
+  var area = p.area||p.total_area||'';
+  var floor = p.floor||'';
+  var maxFloor = p.floors_total||p.max_floor||'';
+  var rooms = p.rooms||p.room_count||'';
+  var img = p.main_image||p.image||'/static/images/no-photo.svg';
+  var cashback = Number(p.cashback_amount)||Math.round(price*(Number(p.cashback_rate)||3.5)/100);
+  return `<div class="cmp-card" data-cmp-prop="${id}">
+    <div class="relative">
+      <img src="${img}" alt="${title}" class="cmp-card-img" onerror="this.src='/static/images/no-photo.svg'">
+      <button onclick="cmpRemoveProp('${id}')" class="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-3">
+      <p class="font-semibold text-xs text-gray-900 leading-snug mb-1 line-clamp-2">${title}</p>
+      <p class="font-bold text-sm text-[#0088CC] mb-2">${price?fmtPrice(price):'По запросу'}</p>
+      <div class="space-y-1 text-xs text-gray-500 mb-2">
+        ${rooms?`<div class="flex justify-between"><span>Комнат</span><span class="font-medium text-gray-700">${rooms}</span></div>`:''}
+        ${area?`<div class="flex justify-between"><span>Площадь</span><span class="font-medium text-gray-700">${area} м²</span></div>`:''}
+        ${floor?`<div class="flex justify-between"><span>Этаж</span><span class="font-medium text-gray-700">${floor}${maxFloor?'/'+maxFloor:''}</span></div>`:''}
+        ${cashback?`<div class="flex justify-between"><span>Кэшбек</span><span class="font-medium text-green-600">${fmtPrice(cashback)}</span></div>`:''}
+      </div>
+      <a href="/object/${id}" class="block w-full text-center py-1.5 bg-[#0088CC]/10 text-[#0088CC] text-xs font-semibold rounded-lg hover:bg-[#0088CC]/20 transition-colors">Открыть</a>
+    </div>
+  </div>`;
+}
+
+// ── Comparison tab: load complex cards ─────────────────────────────────────
+async function loadCmpCplxs(){
+  _cmpCplxsLoaded = true;
+  var loading = document.getElementById('cmp-cplxs-loading');
+  var grid = document.getElementById('cmp-cplxs-grid');
+  var empty = document.getElementById('cmp-cplxs-empty');
+  var detLink = document.getElementById('cmp-cplxs-detail-link');
+
+  var ids = [];
+  try { ids = JSON.parse(localStorage.getItem('comparison_complexes')||'[]'); } catch(e){}
+
+  _cmpCplxCount = ids.length;
+  document.getElementById('cmp-cplx-count').textContent = _cmpCplxCount;
+  updateBadge('comparison', _cmpPropCount+_cmpCplxCount);
+
+  if(ids.length===0){ if(loading) loading.classList.add('hidden'); if(empty) empty.classList.remove('hidden'); updateCmpClearBtn(); return; }
+
+  var cards = [];
+  for(var i=0; i<Math.min(ids.length,6); i++){
+    try {
+      var rawId = ids[i];
+      var cplxId = (rawId !== null && typeof rawId === 'object') ? (rawId.complex_id || rawId.id || String(rawId)) : rawId;
+      var r = await fetch('/api/complex/'+cplxId);
+      if(r.ok){ var d = await r.json(); if(d.id||d.complex){ cards.push(d.complex||d); } }
+    } catch(e){}
+  }
+
+  if(loading) loading.classList.add('hidden');
+  if(cards.length===0){ if(empty) empty.classList.remove('hidden'); updateCmpClearBtn(); return; }
+
+  grid.innerHTML = cards.map(function(c,i){ return cmpCplxCard(c, ids[i]); }).join('');
+  grid.classList.remove('hidden');
+  if(detLink && ids.length>=2) detLink.classList.remove('hidden');
+  updateCmpClearBtn();
+}
+
+function cmpCplxCard(c, fallbackId){
+  var id = c.id || fallbackId;
+  var name = c.name||c.complex_name||('ЖК #'+id);
+  var img = c.main_image||c.image||'/static/images/no-photo.svg';
+  var minPrice = c.min_price||c.price_from||0;
+  var developer = c.developer_name||c.developer||'';
+  var deliveryDate = c.completion_date||c.delivery_date||c.end_completion_short||'';
+  var cashbackRate = c.cashback_rate||3.5;
+  var url = c.url||c.complex_url||('/zk/'+id);
+  return `<div class="cmp-card" data-cmp-cplx="${id}">
+    <div class="relative">
+      <img src="${img}" alt="${name}" class="cmp-card-img" onerror="this.src='/static/images/no-photo.svg'">
+      <button onclick="cmpRemoveCplx('${id}')" class="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-3">
+      <p class="font-semibold text-xs text-gray-900 leading-snug mb-1 line-clamp-2">${name}</p>
+      <p class="font-bold text-sm text-[#0088CC] mb-2">${minPrice?'от '+fmtPrice(minPrice):'По запросу'}</p>
+      <div class="space-y-1 text-xs text-gray-500 mb-2">
+        ${developer?`<div class="flex justify-between"><span>Застройщик</span><span class="font-medium text-gray-700 text-right max-w-[100px] truncate">${developer}</span></div>`:''}
+        ${deliveryDate?`<div class="flex justify-between"><span>Срок сдачи</span><span class="font-medium text-gray-700">${deliveryDate}</span></div>`:''}
+        ${cashbackRate?`<div class="flex justify-between"><span>Кэшбек</span><span class="font-medium text-green-600">${cashbackRate}%</span></div>`:''}
+      </div>
+      <a href="${url}" class="block w-full text-center py-1.5 bg-[#0088CC]/10 text-[#0088CC] text-xs font-semibold rounded-lg hover:bg-[#0088CC]/20 transition-colors">Открыть</a>
+    </div>
+  </div>`;
+}
+
+// ── Remove from comparison ────────────────────────────────────────────────
+window.cmpRemoveProp = async function(id){
+  var ep = IS_MGR ? '/api/manager/comparison/property/remove' : '/api/user/comparison/property/remove';
+  try {
+    await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},body:JSON.stringify({property_id:id})});
+  } catch(e){}
+  var arr = JSON.parse(localStorage.getItem('comparisons')||'[]').filter(x=>String(x)!==String(id));
+  localStorage.setItem('comparisons',JSON.stringify(arr));
+  var card = document.querySelector('[data-cmp-prop="'+id+'"]');
+  if(card) card.remove();
+  _cmpPropCount = Math.max(0,_cmpPropCount-1);
+  document.getElementById('cmp-prop-count').textContent=_cmpPropCount;
+  updateBadge('comparison',_cmpPropCount+_cmpCplxCount);
+  if(_cmpPropCount===0){ document.getElementById('cmp-props-empty').classList.remove('hidden'); document.getElementById('cmp-props-detail-link').classList.add('hidden'); }
+  updateCmpClearBtn();
+};
+
+window.cmpRemoveCplx = async function(id){
+  var ep = IS_MGR ? '/api/manager/comparison/complex/remove' : '/api/user/comparison/complex/remove';
+  try {
+    await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},body:JSON.stringify({complex_id:id})});
+  } catch(e){}
+  var arr = JSON.parse(localStorage.getItem('comparison_complexes')||'[]').filter(x=>String(x)!==String(id));
+  localStorage.setItem('comparison_complexes',JSON.stringify(arr));
+  var card = document.querySelector('[data-cmp-cplx="'+id+'"]');
+  if(card) card.remove();
+  _cmpCplxCount = Math.max(0,_cmpCplxCount-1);
+  document.getElementById('cmp-cplx-count').textContent=_cmpCplxCount;
+  updateBadge('comparison',_cmpPropCount+_cmpCplxCount);
+  if(_cmpCplxCount===0){ document.getElementById('cmp-cplxs-empty').classList.remove('hidden'); document.getElementById('cmp-cplxs-detail-link').classList.add('hidden'); }
+  updateCmpClearBtn();
+};
+
+window.cmpClearSub = function(){
+  if(_curSub==='properties') { localStorage.removeItem('comparisons'); _cmpPropsLoaded=false; loadCmpProps(); }
+  else { localStorage.removeItem('comparison_complexes'); _cmpCplxsLoaded=false; loadCmpCplxs(); }
+};
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadAll);
+})();
+</script>
+{% endblock %}
